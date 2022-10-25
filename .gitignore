@@ -1,0 +1,10 @@
+venv/
+
+.env
+
+response.html
+
+Requests.txt
+
+data.json
+
