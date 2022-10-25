@@ -16,7 +16,7 @@ class ServiceVersion(models.Model):
 class ServiceKey(models.Model):
     service = models.ForeignKey(
         Service,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
     )
     version = models.ForeignKey(
         ServiceVersion,

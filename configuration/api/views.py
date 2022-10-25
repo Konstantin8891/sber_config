@@ -9,7 +9,7 @@ from .serializers import KeySerializer
 from configs.models import Service, ServiceKey, ServiceVersion
 
 
-@api_view(['GET', 'POST', 'PATCH', 'DELETE'])
+@api_view(['GET', 'POST', 'PATCH', 'DELETE', 'PUT'])
 def hello(request):
     if request.method == 'POST':
         name = request.data['service']
@@ -69,7 +69,6 @@ def hello(request):
                 for k, v in setting.items():
                     try:
                         service_key_instance = ServiceKey.objects.get(service=service, version=version_query, service_key=k)
-                        print(service_key_instance)
                         if service_key_instance.service_value != v:
                             service_key_instance.service_value = v
                             service_key_instance.save()
@@ -88,10 +87,40 @@ def hello(request):
         try:
             service = Service.objects.get(name=name)
             service.delete()
-            return Response(data='deleted', status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except:
             return Response(data='no record', status=status.HTTP_400_BAD_REQUEST)
     name = request.query_params.get('service')
+    if request.method == 'PUT':
+        name = request.data['service']
+        serv_settings = request.data['data']
+        service, _ = Service.objects.get_or_create(name=name)
+        for find_ver in serv_settings:
+            try:
+                version = find_ver['version']
+                flag = True
+            except:
+                pass
+        if not flag:
+            return Response(data='no version in file', status=status.HTTP_400_BAD_REQUEST)
+        version_query, _ = ServiceVersion.objects.get_or_create(service=service, version=version)
+        flag = False
+        for setting in serv_settings:
+            for k, v in setting.items():
+                try:
+                    service_key_instance = ServiceKey.objects.get(service=service, version=version_query, service_key=k)
+                    if service_key_instance.service_value != v:
+                        service_key_instance.service_value = v
+                        service_key_instance.save()
+                        flag = True
+                except:
+                    ServiceKey.objects.create(service=service, version=version_query, service_key=k, service_value=v)
+                    flag = True
+        
+                # ServiceKey.objects.update_or_create(service=service, version=version_query, service_key=k, service_value=v)
+        if flag:
+            return Response(data='put', status=status.HTTP_201_CREATED)
+        return Response(data='no changes', status=status.HTTP_400_BAD_REQUEST)
     try:
         service = Service.objects.get(name=name)
         service_key_instance = ServiceKey.objects.filter(service=service)
