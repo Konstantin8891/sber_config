@@ -1,5 +1,3 @@
-from pyexpat import version_info
-from wsgiref.simple_server import server_version
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -32,11 +30,11 @@ class Test(TestCase):
 
     def setUp(self):
         self.guest_client = Client()
-    
+
     def test_get_endpoint(self):
         response = self.guest_client.get('/config?service=test1&version=test1')
         self.assertEqual(response.status_code, HTTPStatus.OK)
-    
+
     def test_post_endpoint_new_version_existing_service(self):
         self.guest_client.post(
             reverse('config'),
@@ -49,8 +47,12 @@ class Test(TestCase):
             },
             content_type='application/json'
         )
-        self.assertEqual(ServiceKey.objects.count(), self.service_key_count + 1)
-        version = ServiceVersion.objects.get(service=self.service, version='test2')
+        self.assertEqual(
+            ServiceKey.objects.count(), self.service_key_count + 1
+        )
+        version = ServiceVersion.objects.get(
+            service=self.service, version='test2'
+        )
         self.assertTrue(ServiceKey.objects.filter(
             service=self.service,
             version=version,
@@ -69,8 +71,10 @@ class Test(TestCase):
                 ]
             },
             content_type='application/json'
-        )        
-        self.assertEqual(ServiceKey.objects.count(), self.service_key_count + 1)
+        )
+        self.assertEqual(
+            ServiceKey.objects.count(), self.service_key_count + 1
+        )
         service = Service.objects.get(name='test2')
         version = ServiceVersion.objects.get(service=service, version='test1')
         self.assertTrue(ServiceKey.objects.filter(
@@ -154,7 +158,9 @@ class Test(TestCase):
         )
         service = Service.objects.get(name='test2')
         version = ServiceVersion.objects.get(service=service, version='test1')
-        self.assertEqual(ServiceKey.objects.count(), self.service_key_count + 1)
+        self.assertEqual(
+            ServiceKey.objects.count(), self.service_key_count + 1
+        )
         self.assertTrue(ServiceKey.objects.filter(
             service=service,
             version=version,
