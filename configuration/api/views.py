@@ -8,8 +8,8 @@ from configs.models import Service, ServiceKey, ServiceVersion
 
 class ConfigAPIView(APIView):
     def get(self, request):
-        version = request.query_params.get('version')
         name = request.query_params.get('service')
+        version = request.query_params.get('version')
         if version and name:
             try:
                 service = Service.objects.get(name=name)

@@ -19,5 +19,5 @@ from api.views import ConfigAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('config', ConfigAPIView.as_view())
+    path('config', ConfigAPIView.as_view(), name='config')
 ]
