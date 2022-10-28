@@ -11,6 +11,7 @@ class ServiceVersion(models.Model):
         on_delete=models.CASCADE
     )
     version = models.TextField()
+    is_used = models.BooleanField(default=True)
 
 
 class ServiceKey(models.Model):

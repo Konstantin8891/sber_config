@@ -45,6 +45,13 @@ class ConfigAPIView(APIView):
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
+        try:
+            is_used = request.data['is_used']
+        except KeyError:
+            return Response(
+                data="can't find is_used flag",
+                status=status.HTTP_400_BAD_REQUEST
+            )
         serv_settings = request.data['data']
         try:
             service = Service.objects.get(name=name)
@@ -56,7 +63,7 @@ class ConfigAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             ver_created = ServiceVersion.objects.create(
-                service=service, version=version
+                service=service, version=version, is_used=is_used
             )
             for setting in serv_settings:
                 for k, v in setting.items():
@@ -67,7 +74,7 @@ class ConfigAPIView(APIView):
                         service_value=v
                     )
             return Response(data='created', status=status.HTTP_201_CREATED)
-        except NotImplementedError:
+        except Exception:
             service = Service.objects.create(name=name)
             ver_created = ServiceVersion.objects.create(
                 service=service, version=version
@@ -95,22 +102,51 @@ class ConfigAPIView(APIView):
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
+        # try:
+        #     is_used = request.data['is_used']
+        # except Exception:
+        #     pass
         serv_settings = request.data['data']
         try:
             service = Service.objects.get(name=name)
             versions = ServiceVersion.objects.filter(service=service)
-            flag = False
+            flag_version = False
             for ver in versions:
                 if ver.version == version:
-                    flag = True
-            if not flag:
-                ServiceVersion.objects.create(service=service, version=version)
+                    flag_version = True
             flag = False
+            try:
+                is_used = request.data['is_used']
+                print(is_used)
+                print(flag_version)
+                if not flag_version:
+                    ServiceVersion.objects.create(
+                        service=service,
+                        version=version,
+                        is_used=is_used
+                    )
+                    flag = True
+                else:
+                    serv_version = ServiceVersion.objects.get(
+                        service=service,
+                        version=version
+                    )
+                    if serv_version.is_used != is_used:
+                        serv_version.is_used = is_used
+                        serv_version.save()
+                        flag = True
+            except KeyError:
+                if not flag_version:
+                    ServiceVersion.objects.create(
+                        service=service,
+                        version=version
+                    )
+                    flag = True
             try:
                 version_query = ServiceVersion.objects.get(
                     service=service, version=version
                 )
-            except NotImplementedError:
+            except Exception:
                 version_query = ServiceVersion.objects.create(
                     service=service, version=version
                 )
@@ -126,7 +162,7 @@ class ConfigAPIView(APIView):
                             service_key_instance.service_value = v
                             service_key_instance.save()
                             flag = True
-                    except NotImplementedError:
+                    except Exception:
                         ServiceKey.objects.create(
                             service=service,
                             version=version_query,
@@ -141,7 +177,7 @@ class ConfigAPIView(APIView):
             return Response(
                 data='no changes', status=status.HTTP_400_BAD_REQUEST
             )
-        except NotImplementedError:
+        except Exception:
             return Response(
                 data='record does not exist',
                 status=status.HTTP_400_BAD_REQUEST
@@ -149,11 +185,22 @@ class ConfigAPIView(APIView):
 
     def delete(self, request):
         name = request.query_params.get('service')
+        version = request.query_params.get('version')
         try:
             service = Service.objects.get(name=name)
-            service.delete()
+            print(service)
+            service_version = ServiceVersion.objects.get(
+                service=service, version=version
+            )
+            print(service_version)
+            if service_version.is_used:
+                return Response(
+                    data='config is in use',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            service_version.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except NotImplementedError:
+        except Exception:
             return Response(
                 data='no record', status=status.HTTP_400_BAD_REQUEST
             )
@@ -171,12 +218,34 @@ class ConfigAPIView(APIView):
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
-        serv_settings = request.data['data']
-        service, _ = Service.objects.get_or_create(name=name)
-        version_query, _ = ServiceVersion.objects.get_or_create(
-            service=service, version=version
-        )
+        try:
+            is_used = request.data['is_used']
+        except KeyError:
+            return Response(
+                data="can't find is_used flag",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            serv_settings = request.data['data']
+        except KeyError:
+            return Response(data='no keys', status=status.HTTP_400_BAD_REQUEST)
+        service, service_created = Service.objects.get_or_create(name=name)
         flag = False
+        if service_created:
+            flag = True
+        try:
+            version_query = ServiceVersion.objects.get(
+                service=service, version=version
+            )
+            if version_query.is_used != is_used:
+                version_query.is_used = is_used
+                version_query.save()
+                flag = True
+        except Exception:
+            version_query = ServiceVersion.objects.create(
+                service=service, version=version, is_used=is_used
+            )
+            flag = True
         for setting in serv_settings:
             for k, v in setting.items():
                 try:
@@ -187,7 +256,7 @@ class ConfigAPIView(APIView):
                         service_key_instance.service_value = v
                         service_key_instance.save()
                         flag = True
-                except NotImplementedError:
+                except Exception:
                     ServiceKey.objects.create(
                         service=service,
                         version=version_query,
