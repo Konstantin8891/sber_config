@@ -1,14 +1,48 @@
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import KeySerializer
+from google.protobuf.json_format import MessageToDict
+
+from .serializers import KeySerializer, ServiceKeyVersionSerializer
+from configuration.settings import MEDIA_ROOT
 from configs.models import Service, ServiceKey, ServiceVersion
+from protobuf import data_pb2
 
 
 class ConfigAPIView(APIView):
+    def convert_is_used_to_bool(self, is_used):
+        if is_used == 1:
+            return False
+        elif is_used == 2:
+            return True
+        elif is_used == None:
+            return None
+        else:
+            return ValueError('incorrect is_used flag')     
+
+    def convert_protobuf_to_dict(self, request):
+        file = request.data['file']
+        with default_storage.open('tmp/data.bin', 'wb') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+                destination.close()
+        path = MEDIA_ROOT + '/tmp/data.bin'
+        f = open(path, 'rb')
+        read_message = data_pb2.ConfigMessage()
+        read_message.ParseFromString(f.read())
+        print(read_message)
+        dict_message = MessageToDict(read_message)
+        return dict_message
+
     def get(self, request):
-        name = request.query_params.get('service')
+        name = request.query_params.get('service', None)
+        if name == None:
+            serializer = ServiceKeyVersionSerializer(ServiceKey.objects.all(), many=True)
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
         version = request.query_params.get('version')
         if version and name:
             try:
@@ -33,26 +67,29 @@ class ConfigAPIView(APIView):
             return Response(data='incorrect query params')
 
     def post(self, request):
+        dict_message = self.convert_protobuf_to_dict(request)
         try:
-            name = request.data['service']
+            name = dict_message['service']
         except KeyError:
             return Response(
                 data='invalid service', status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            version = request.data['version']
+            version = dict_message['version']
         except KeyError:
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            is_used = request.data['is_used']
+            is_used_integer = dict_message['isUsed']
+            is_used = self.convert_is_used_to_bool(is_used_integer)
+            print(is_used)
         except KeyError:
             return Response(
                 data="can't find is_used flag",
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serv_settings = request.data['data']
+        serv_settings = dict_message['keys']
         try:
             service = Service.objects.get(name=name)
             if ServiceVersion.objects.filter(
@@ -66,47 +103,47 @@ class ConfigAPIView(APIView):
                 service=service, version=version, is_used=is_used
             )
             for setting in serv_settings:
-                for k, v in setting.items():
-                    ServiceKey.objects.create(
-                        service=service,
-                        version=ver_created,
-                        service_key=k,
-                        service_value=v
-                    )
+                print(setting)
+                ServiceKey.objects.create(
+                    service=service,
+                    version=ver_created,
+                    service_key=setting['serviceKey'],
+                    service_value=setting['serviceValue']
+                )
             return Response(data='created', status=status.HTTP_201_CREATED)
         except Exception:
             service = Service.objects.create(name=name)
             ver_created = ServiceVersion.objects.create(
-                service=service, version=version
+                service=service, version=version, is_used=is_used
             )
             for setting in serv_settings:
-                for k, v in setting.items():
-                    ServiceKey.objects.create(
-                        service=service,
-                        version=ver_created,
-                        service_key=k,
-                        service_value=v
-                    )
+                ServiceKey.objects.create(
+                    service=service,
+                    version=ver_created,
+                    service_key=setting['serviceKey'],
+                    service_value=setting['serviceValue']
+                )
             return Response(data='created', status=status.HTTP_201_CREATED)
 
     def patch(self, request):
+        dict_message = self.convert_protobuf_to_dict(request)
         try:
-            name = request.data['service']
+            name = dict_message['service']
         except KeyError:
             return Response(
                 data='invalid service', status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            version = request.data['version']
+            version = dict_message['version']
         except KeyError:
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
         # try:
-        #     is_used = request.data['is_used']
+        #     is_used = dict_message['isUsed']
         # except Exception:
         #     pass
-        serv_settings = request.data['data']
+        serv_settings = dict_message['keys']
         try:
             service = Service.objects.get(name=name)
             versions = ServiceVersion.objects.filter(service=service)
@@ -116,9 +153,10 @@ class ConfigAPIView(APIView):
                     flag_version = True
             flag = False
             try:
-                is_used = request.data['is_used']
-                print(is_used)
-                print(flag_version)
+                is_used_integer = dict_message['isUsed']
+                is_used = self.convert_is_used_to_bool(is_used_integer)
+                # print(is_used)
+                # print(flag_version)
                 if not flag_version:
                     ServiceVersion.objects.create(
                         service=service,
@@ -151,25 +189,24 @@ class ConfigAPIView(APIView):
                     service=service, version=version
                 )
             for setting in serv_settings:
-                for k, v in setting.items():
-                    try:
-                        service_key_instance = ServiceKey.objects.get(
-                            service=service,
-                            version=version_query,
-                            service_key=k
-                        )
-                        if service_key_instance.service_value != v:
-                            service_key_instance.service_value = v
-                            service_key_instance.save()
-                            flag = True
-                    except Exception:
-                        ServiceKey.objects.create(
-                            service=service,
-                            version=version_query,
-                            service_key=k,
-                            service_value=v
-                        )
+                try:
+                    service_key_instance = ServiceKey.objects.get(
+                        service=service,
+                        version=version_query,
+                        service_key=setting['serviceKey']
+                    )
+                    if service_key_instance.service_value != setting['serviceValue']:
+                        service_key_instance.service_value = setting['serviceValue']
+                        service_key_instance.save()
                         flag = True
+                except Exception:
+                    ServiceKey.objects.create(
+                        service=service,
+                        version=version_query,
+                        service_key=setting['serviceKey'],
+                        service_value=setting['serviceValue']
+                    )
+                    flag = True
             if flag:
                 return Response(
                     data='changed', status=status.HTTP_206_PARTIAL_CONTENT
@@ -206,27 +243,30 @@ class ConfigAPIView(APIView):
             )
 
     def put(self, request):
+        dict_message = self.convert_protobuf_to_dict(request)
+        print(dict_message)
         try:
-            name = request.data['service']
+            name = dict_message['service']
         except KeyError:
             return Response(
                 data='invalid service', status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            version = request.data['version']
+            version = dict_message['version']
         except KeyError:
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            is_used = request.data['is_used']
+            is_used_integer = dict_message['isUsed']
+            is_used = self.convert_is_used_to_bool(is_used_integer)
         except KeyError:
             return Response(
                 data="can't find is_used flag",
                 status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            serv_settings = request.data['data']
+            serv_settings = dict_message['keys']
         except KeyError:
             return Response(data='no keys', status=status.HTTP_400_BAD_REQUEST)
         service, service_created = Service.objects.get_or_create(name=name)
@@ -247,23 +287,22 @@ class ConfigAPIView(APIView):
             )
             flag = True
         for setting in serv_settings:
-            for k, v in setting.items():
-                try:
-                    service_key_instance = ServiceKey.objects.get(
-                        service=service, version=version_query, service_key=k
-                    )
-                    if service_key_instance.service_value != v:
-                        service_key_instance.service_value = v
-                        service_key_instance.save()
-                        flag = True
-                except Exception:
-                    ServiceKey.objects.create(
-                        service=service,
-                        version=version_query,
-                        service_key=k,
-                        service_value=v
-                    )
+            try:
+                service_key_instance = ServiceKey.objects.get(
+                    service=service, version=version_query, service_key=setting['serviceKey']
+                )
+                if service_key_instance.service_value != setting['serviceValue']:
+                    service_key_instance.service_value = setting['serviceValue']
+                    service_key_instance.save()
                     flag = True
+            except Exception:
+                ServiceKey.objects.create(
+                    service=service,
+                    version=version_query,
+                    service_key=setting['serviceKey'],
+                    service_value=setting['serviceValue']
+                )
+                flag = True
         if flag:
             return Response(data='put', status=status.HTTP_201_CREATED)
         return Response(data='no changes', status=status.HTTP_400_BAD_REQUEST)

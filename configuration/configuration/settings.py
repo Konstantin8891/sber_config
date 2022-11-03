@@ -8,6 +8,10 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# BINARY_DIR = os.path.join(BASE_DIR, 'binary')
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'binary')
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 DEBUG = True
@@ -101,3 +105,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.FileUploadParser',
+    ]
+}
