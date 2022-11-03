@@ -33,14 +33,13 @@ class ConfigAPIView(APIView):
         f = open(path, 'rb')
         read_message = data_pb2.ConfigMessage()
         read_message.ParseFromString(f.read())
-        print(read_message)
         return MessageToDict(read_message)
 
     def get(self, request):
         name = request.query_params.get('service', None)
         if name is None:
             serializer = ServiceKeyVersionSerializer(
-                ServiceKey.objects.all(), many=True
+                ServiceVersion.objects.all(), many=True
             )
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         version = request.query_params.get('version')
@@ -83,7 +82,6 @@ class ConfigAPIView(APIView):
         try:
             is_used_integer = dict_message['isUsed']
             is_used = self.convert_is_used_to_bool(is_used_integer)
-            print(is_used)
         except KeyError:
             return Response(
                 data="can't find is_used flag",
@@ -103,7 +101,6 @@ class ConfigAPIView(APIView):
                 service=service, version=version, is_used=is_used
             )
             for setting in serv_settings:
-                print(setting)
                 ServiceKey.objects.create(
                     service=service,
                     version=ver_created,
@@ -219,11 +216,9 @@ class ConfigAPIView(APIView):
         version = request.query_params.get('version')
         try:
             service = Service.objects.get(name=name)
-            print(service)
             service_version = ServiceVersion.objects.get(
                 service=service, version=version
             )
-            print(service_version)
             if service_version.is_used:
                 return Response(
                     data='config is in use',
@@ -238,7 +233,6 @@ class ConfigAPIView(APIView):
 
     def put(self, request):
         dict_message = self.convert_protobuf_to_dict(request)
-        print(dict_message)
         try:
             name = dict_message['service']
         except KeyError:
