@@ -1,4 +1,4 @@
-from configuration.protobuf import data_pb2
+import data_pb2
 
 
 def add_record(data):
