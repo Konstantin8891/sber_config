@@ -41,6 +41,7 @@ class ServiceKeyVersionSerializer(serializers.ModelSerializer):
         return ServiceVersionSerializer(service_version).data
 
     def get_keys(self, obj):
-        keys = ServiceKey.objects.filter(service_id=obj.service_id, version_id=obj.version_id)
+        keys = ServiceKey.objects.filter(
+            service_id=obj.service_id, version_id=obj.version_id
+        )
         return KeySerializer(keys, many=True).data
-    

@@ -1,4 +1,3 @@
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from rest_framework import status
@@ -19,10 +18,10 @@ class ConfigAPIView(APIView):
             return False
         elif is_used == 2:
             return True
-        elif is_used == None:
+        elif is_used is None:
             return None
         else:
-            return ValueError('incorrect is_used flag')     
+            return ValueError('incorrect is_used flag')
 
     def convert_protobuf_to_dict(self, request):
         file = request.data['file']
@@ -35,13 +34,14 @@ class ConfigAPIView(APIView):
         read_message = data_pb2.ConfigMessage()
         read_message.ParseFromString(f.read())
         print(read_message)
-        dict_message = MessageToDict(read_message)
-        return dict_message
+        return MessageToDict(read_message)
 
     def get(self, request):
         name = request.query_params.get('service', None)
-        if name == None:
-            serializer = ServiceKeyVersionSerializer(ServiceKey.objects.all(), many=True)
+        if name is None:
+            serializer = ServiceKeyVersionSerializer(
+                ServiceKey.objects.all(), many=True
+            )
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         version = request.query_params.get('version')
         if version and name:
@@ -139,10 +139,6 @@ class ConfigAPIView(APIView):
             return Response(
                 data='no version in file', status=status.HTTP_400_BAD_REQUEST
             )
-        # try:
-        #     is_used = dict_message['isUsed']
-        # except Exception:
-        #     pass
         serv_settings = dict_message['keys']
         try:
             service = Service.objects.get(name=name)
@@ -155,8 +151,6 @@ class ConfigAPIView(APIView):
             try:
                 is_used_integer = dict_message['isUsed']
                 is_used = self.convert_is_used_to_bool(is_used_integer)
-                # print(is_used)
-                # print(flag_version)
                 if not flag_version:
                     ServiceVersion.objects.create(
                         service=service,
@@ -190,14 +184,14 @@ class ConfigAPIView(APIView):
                 )
             for setting in serv_settings:
                 try:
-                    service_key_instance = ServiceKey.objects.get(
+                    s_k_instance = ServiceKey.objects.get(
                         service=service,
                         version=version_query,
                         service_key=setting['serviceKey']
                     )
-                    if service_key_instance.service_value != setting['serviceValue']:
-                        service_key_instance.service_value = setting['serviceValue']
-                        service_key_instance.save()
+                    if s_k_instance.service_value != setting['serviceValue']:
+                        s_k_instance.service_value = setting['serviceValue']
+                        s_k_instance.save()
                         flag = True
                 except Exception:
                     ServiceKey.objects.create(
@@ -289,10 +283,14 @@ class ConfigAPIView(APIView):
         for setting in serv_settings:
             try:
                 service_key_instance = ServiceKey.objects.get(
-                    service=service, version=version_query, service_key=setting['serviceKey']
+                    service=service,
+                    version=version_query,
+                    service_key=setting['serviceKey']
                 )
-                if service_key_instance.service_value != setting['serviceValue']:
-                    service_key_instance.service_value = setting['serviceValue']
+                if service_key_instance.service_value != \
+                        setting['serviceValue']:
+                    service_key_instance.service_value = \
+                        setting['serviceValue']
                     service_key_instance.save()
                     flag = True
             except Exception:

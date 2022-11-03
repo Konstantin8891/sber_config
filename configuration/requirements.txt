@@ -18,7 +18,7 @@ httplib2==0.20.4
 idna==3.4
 mccabe==0.7.0
 pep8-naming==0.13.2
-protobuf==3.20.1
+protobuf==3.20.2
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycodestyle==2.9.1

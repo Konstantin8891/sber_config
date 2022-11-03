@@ -1,6 +1,6 @@
 from configuration.protobuf import data_pb2
 
-# Iterates though all people in the AddressBook and prints info about them.
+
 def read_file(data):
     print("Service: ", data.service)
     print("Version: ", data.version)

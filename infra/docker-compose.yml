@@ -1,6 +1,12 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data5/
+    env_file:
+      - ../configuration/.env
   api:
     build:
       context: ../ 
@@ -8,6 +14,8 @@ services:
     restart: always
     env_file:
       - ../configuration/.env 
+    depends_on:
+      - db
   nginx:
     image: nginx:1.21.3-alpine
     ports:
@@ -16,3 +24,5 @@ services:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - api
+volumes:
+  postgres_data:
