@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message ConfigMessage {
+
+    message Keys {
+        string service_key = 1;
+        string service_value = 2;
+    }
+
+    string service = 1;
+    string version = 2;
+    int32 is_used = 3;
+    repeated Keys keys = 4;
+}
+
