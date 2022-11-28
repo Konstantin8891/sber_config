@@ -197,7 +197,7 @@ docker-compose exec api python manage.py migrate
 
 ### Requests
 
-Postman was used for reaqests
+Postman was used for reaquests
 
 Headers:
 
