@@ -161,7 +161,7 @@ http://localhost/config?service=имя_сервиса&version=версия
 
 Удаляет конфиг, если он неиспользуется.
 
-# API for get, change, add configuration of applications
+# API for getting, changing, adding configuration of applications
 
 API supports versioning.
 
